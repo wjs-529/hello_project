@@ -52,11 +52,14 @@ class Index extends Component {
   }
 
   handleTableChange = pagination => {
+    const { params } = this.state;
+    // 如果 pageSize 变了，重置到第一页
+    const newPage = pagination.pageSize !== params.page_rows ? 1 : pagination.current;
     this.setState(
       {
         params: {
           ...this.state.params,
-          page: pagination.current,
+          page: newPage,
           page_rows: pagination.pageSize,
         },
       },
@@ -159,6 +162,12 @@ class Index extends Component {
         ),
       },
       {
+        title: '访问次数',
+        dataIndex: 'view_count',
+        key: 'view_count',
+        render: text => text,
+      },
+      {
         title: '创建人',
         dataIndex: 'appid',
         key: 'appid',
@@ -242,6 +251,8 @@ class Index extends Component {
       total: api.getProjectVersionList.total,
       pageSize: this.state.params.page_rows,
       showTotal: (total, range) => `总共 ${total} 条数据`,
+      showSizeChanger: true,
+      pageSizeOptions: ['10', '20', '50', '100'],
     };
 
     return (

@@ -206,7 +206,7 @@ class IndexController extends BaseController
             ->where($where)
             ->order('a.id', 'desc')
             ->autoPage()
-            ->field('a.id,a.url,c.title,a.file_name,b.appid,a.create_time')
+            ->field('a.id,a.url,a.view_count,c.title,a.file_name,b.appid,a.create_time')
             ->get();
         foreach ($res['list'] as &$item) {
             $id = $this->hashids->encode($item['id'], 1);
@@ -570,10 +570,14 @@ class IndexController extends BaseController
         $id = $decode_data['id'];
         $type = $decode_data['type'];
         if ($auth_url == $url) { //访问根页面才记录
-            if ($type == 1) {
+            if ($type == 1) {// 项目版本
                 ProjectVersion::where('id', $id)->inc('view_count')->update();
-            } else {
-                Project::where('id', $id)->inc('view_count')->update();
+            } else { //项目固定链接，默认是最新的版本，所以访问固定链接的次数记录在最新项目版本中
+                Db::execute(
+                    "UPDATE lz_project_version SET view_count = view_count + 1 
+         WHERE id = (SELECT id FROM lz_project_version WHERE project_id = ? ORDER BY id DESC LIMIT 1)",
+                    [$id]
+                );
             }
         }
 
