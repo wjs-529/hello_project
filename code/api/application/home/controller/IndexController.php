@@ -557,22 +557,45 @@ class IndexController extends BaseController
         preg_match('/api\/show\/(\w+)(.*)?/i', $url, $match);
         $raw_id = $match[1] ?? '';
         //检查授权码
-        $url = $this->checkCode($raw_id);
+        $auth_url = $this->checkCode($raw_id);
         if (!empty($match[2])) {
-            $url = str_ireplace('/index.html', $match[2], $url);
+            $url = str_ireplace('/index.html', $match[2], $auth_url);
+        } else {
+            $url = $auth_url;
         }
+        $url = strtok($url, '?#'); //去掉参数部分
+
+        //记录访问次数
+        $decode_data = $this->decodeRawId($raw_id);
+        $id = $decode_data['id'];
+        $type = $decode_data['type'];
+        if ($auth_url == $url) { //访问根页面才记录
+            if ($type == 1) {
+                ProjectVersion::where('id', $id)->inc('view_count')->update();
+            } else {
+                Project::where('id', $id)->inc('view_count')->update();
+            }
+        }
+
         $file_path = app()->getRootPath() . 'public' . $url;
-        $file_path = preg_replace('/\?.*/', '', $file_path);
         $this->showfile($file_path);
     }
 
     private function showfile($file_path)
     {
+        // 记录访问次数(仅HTML文件)
+        $ext = pathinfo($file_path, PATHINFO_EXTENSION);
+        $content = file_get_contents($file_path);
+        if (strtolower($ext) === 'html') {
+            //判断是否存在favicon,不存在则添加
+            $content = $this->injectFavicon($content);
+        }
+
         $mime = new MimeTypes();
-        $mime_content_type = $mime->getMimeType(pathinfo($file_path)['extension'] ?? '');
+        $mime_content_type = $mime->getMimeType($ext);
         header('Content-Type: ' . $mime_content_type);
         browserCacheControl(60 * 60 * 24 * 30);
-        exit(file_get_contents($file_path));
+        exit($content);
     }
 
     private function checkCode($raw_id)
@@ -582,9 +605,9 @@ class IndexController extends BaseController
             return $auth_url;
         }
         //不存在缓存则需要授权
-        $decode_data = $this->hashids->decode($raw_id);
-        $id = $decode_data[0] ?? 0;
-        $type = $decode_data[1] ?? 1;
+        $decode_data = $this->decodeRawId($raw_id);
+        $id = $decode_data['id'];
+        $type = $decode_data['type'];
         if ($type == 1) {
             $project = ProjectVersion::alias('a')
                 ->join('project b', 'a.project_id=b.id')
@@ -648,5 +671,57 @@ class IndexController extends BaseController
 info;
 
         exit($data);
+    }
+
+    /*
+     * 解码raw_id
+     */
+    private function decodeRawId($raw_id)
+    {
+        $decode_data = $this->hashids->decode($raw_id);
+        $id = $decode_data[0] ?? 0;
+        $type = $decode_data[1] ?? 1;
+
+        return [
+            'id' => $id, //项目id
+            'type' => $type, //1:项目版本，2:项目
+        ];
+    }
+
+    /**
+     * 注入 favicon（如果不存在）
+     */
+    private function injectFavicon($html)
+    {
+        // 检查是否已存在 favicon
+        // 匹配所有包含 "icon" 的 link rel 属性
+        // 兼容：icon, shortcut icon, apple-touch-icon, mask-icon 等
+        $pattern = '/<link[^>]*rel=["\'][^"\']*icon[^"\']*["\'][^>]*>/i';
+        if (preg_match($pattern, $html)) {
+            // 已存在 favicon，不处理
+            return $html;
+        }
+        // 不存在，添加 favicon
+        $favicon = '<link rel="icon" href="/favicon.png" type="image/png">';
+        // 方式1：在 </head> 前插入
+        if (stripos($html, '</head>') !== false) {
+            $html = preg_replace(
+                '/<\/head>/i',
+                "    {$favicon}\n</head>",
+                $html,
+                1  // 只替换第一个
+            );
+        } elseif (stripos($html, '<body') !== false) { // 方式2：如果没有 </head>，在 <body> 前插入
+            $html = preg_replace(
+                '/<body/i',
+                "{$favicon}\n<body",
+                $html,
+                1
+            );
+        } else { // 方式3：都没有，在开头插入
+            $html = $favicon . "\n" . $html;
+        }
+
+        return $html;
     }
 }
