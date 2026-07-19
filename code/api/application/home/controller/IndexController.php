@@ -264,6 +264,20 @@ class IndexController extends BaseController
             ->field('a.id,a.title,a.code,a.desc,a.auth_code,b.appid,a.create_time')
             ->get();
 
+        // 统计每个项目的子版本数量
+        $project_ids = array_column($res['list'], 'id');
+        $version_count = [];
+        if (!empty($project_ids)) {
+            $version_count = ProjectVersion::where('project_id', 'in', $project_ids)
+                ->field('project_id,count(*) as cnt')
+                ->group('project_id')
+                ->select();
+            $version_count = array_column($version_count, 'cnt', 'project_id');
+        }
+        foreach ($res['list'] as &$item) {
+            $item['version_count'] = intval($version_count[$item['id']] ?? 0);
+        }
+
         return $this->successResponse('获取成功', $res);
     }
 

@@ -193,7 +193,11 @@ class Index extends Component {
         title: '项目名称',
         dataIndex: 'title',
         render: (value, record) => {
-          return <Link to={`/h5/index/version/${record.id}`}>{value}</Link>;
+          return (
+            <Link to={`/h5/index/version/${record.id}`}>
+              {value}({record.version_count})
+            </Link>
+          );
         },
       },
       {
