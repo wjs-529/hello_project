@@ -271,7 +271,8 @@ class IndexController extends BaseController
             $version_count = ProjectVersion::where('project_id', 'in', $project_ids)
                 ->field('project_id,count(*) as cnt')
                 ->group('project_id')
-                ->select();
+                ->select()
+                ->toArray();
             $version_count = array_column($version_count, 'cnt', 'project_id');
         }
         foreach ($res['list'] as &$item) {
