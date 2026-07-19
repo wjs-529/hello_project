@@ -11,6 +11,7 @@ import {
   Popover,
   Row,
   Table,
+  Tag,
 } from 'antd';
 import { connect } from 'dva';
 import { Link } from 'dva/router';
@@ -171,7 +172,6 @@ class Index extends Component {
         key: 'code',
         render: (value, record) => (
           <span>
-            {value}
             <Popconfirm
               title="确定要刷新项目标识吗？"
               onConfirm={() => {
@@ -184,8 +184,9 @@ class Index extends Component {
               okText="确定"
               cancelText="取消"
             >
-              <a style={{ marginLeft: 2 }}>🔄</a>
+              <a style={{ marginRight: 2 }}>🔄</a>
             </Popconfirm>
+            {value}
           </span>
         ),
       },
@@ -194,9 +195,10 @@ class Index extends Component {
         dataIndex: 'title',
         render: (value, record) => {
           return (
-            <Link to={`/h5/index/version/${record.id}`}>
-              {value}({record.version_count})
-            </Link>
+            <div>
+              <Tag>{record.version_count}</Tag>
+              <Link to={`/h5/index/version/${record.id}`}>{value}</Link>
+            </div>
           );
         },
       },
