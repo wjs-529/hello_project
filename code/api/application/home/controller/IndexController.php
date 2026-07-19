@@ -266,7 +266,7 @@ class IndexController extends BaseController
             ->get();
 
         // 统计每个项目的子版本数量
-        $project_ids = array_column($res['list'], 'id');
+        $project_ids = Collection::make($res['list'])->column('id');
         $version_count = [];
         if (!empty($project_ids)) {
             $version_count = ProjectVersion::where('project_id', 'in', $project_ids)
